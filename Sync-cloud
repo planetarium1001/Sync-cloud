@@ -9,9 +9,9 @@
 #------------------------------------------------
 #------------------------------------------------
 
-path_work = '/home/Planetarium/Projects/Steam Deck/Saved Games/'
-repository = 'Saved-Games'
-clone_url = 'git@github.com:planetarium1001/' + repository + '.git'
+path_work = ''
+repository = ''
+clone_url = '' + repository + '.git'
 
 #------------------------------------------------
 #------------------------------------------------
@@ -178,7 +178,10 @@ with open(option, 'r') as read_option:
     read_option.close()
 name = options[0].replace('name = ', '').replace('\n', '')
 path = options[1].replace('path = ', '').replace('\n', '')
-files = options[2].replace('files = ', '').replace('\n', '').replace(', ', ',').replace(' ,', ',').split(',')
+if not ',' in options[2]:
+    files = [options[2].replace('files = ', '').replace('\n', '')]
+else:
+    files = options[2].replace('files = ', '').replace('\n', '').replace(', ', ',').replace(' ,', ',').split(',')
 print('==========================================\n')
 print('name: ', name, '\npath: ', path, '\nfiles: ', str(files), '\n')
 
