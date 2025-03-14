@@ -229,6 +229,10 @@ if status[0] == 0 and status[1] == 0: # 本地 远程均无
     cmd = 'git branch %s' % branch
     os.system(cmd) # create a branch 
     switch_branch(branch, '', path_work, repository) # Switch to local branch
+    files_remove = os.listdir(path_work + repository)
+    for file in files_remove:
+        if file != '.git':
+            os.remove(path_work + repository + '/' + file)
     cp_files(path, files, 1, path_work, repository) # Copy files to git repository
     with open(path_work + repository + '/README.md', 'w') as write_readme:
         write_readme.write('# %s\nThis branch is for `%s`.' % (name, name))
