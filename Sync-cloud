@@ -1,0 +1,274 @@
+#!/bin/python
+#    -*- coding: utf-8 -*-
+# @Time        : 2025.03.14
+# @Author      : Planetarium
+# @File        : Sync-cloud.py
+# @Description : Sync saved games to github
+# @Version     : v1.0
+
+#------------------------------------------------
+#------------------------------------------------
+
+path_work = ''
+repository = ''
+clone_url = '' + repository + '.git'
+
+#------------------------------------------------
+#------------------------------------------------
+
+import os
+import sys
+
+# Switch branch
+#   - branch: [str]
+#   - where: [str]
+# branch: name
+# where:
+#   - local --> ''
+#   - remote --> 'origin/'
+def switch_branch(branch, where, path_work, repository):
+    os.chdir(path_work + repository)
+    os.system('git fetch')
+    cmd = 'git checkout %s%s' % (where, branch)
+    os.system(cmd)
+    print('Switch branch to %s\n' % branch)
+
+# Chech Status
+def check_status(path_work, repository):
+    print('==========================================\n')
+    os.chdir(path_work + repository)
+    os.system('git fetch')
+    os.system('git status > ../Status')
+    with open(path_work + 'Status', 'r') as read_status:
+        status = read_status.read()
+        read_status.close()
+    os.remove(path_work + 'Status')
+    print('check_status : \n%s\n' % status)
+    if 'Changes not staged for commit' in status or 'nothing added to commit but untracked files present' in status:
+        status = 0
+        print('check_status : Local > Remote\n')
+        # 本地比远程新
+    elif 'nothing to commit, working tree clean' in status:
+        status = 1
+        print('check_status : Local = Remote\n')
+        # 本地和远程一样新
+    elif 'Your branch is behind' in status:
+        status = 2
+        print('check_status : Local < Remote\n')
+        # 本地比远程旧
+    else:
+        status = 3
+        print('check_status : Error!\n')
+        sys.exit()
+        # 出现问题
+    print('==========================================\n')
+    return status
+# status:
+#   - 0: local > remote
+#   - 1: local = remote
+#   - 2: local < remote
+#   - 3: Error
+# return [int]
+
+# Push to remote
+def push_remote(branch):
+    print('==========================================\n')
+    cmd = 'git init && git add ./ && git commit -m "Sync" && git push --set-upstream origin %s' % branch
+    os.system(cmd)
+    print('push_remote : Push to upstream\n')
+    print('==========================================\n')
+
+# Merge from remote
+def merge_remote(branch):
+    print('==========================================\n')
+    cmd = 'git merge origin/%s' % branch
+    os.system(cmd)
+    print('merge_remote : Merge from upstream\n')
+    print('==========================================\n')
+
+# Cp files
+#   - path: [str]
+#   - files: [list]
+#   - towhere: [int]
+#        - 0: to local
+#        - 1: to remote
+def cp_files(path, files, towhere, path_work, repository):
+    print('==========================================\n')
+    if towhere == 0:
+        for file in files:
+            cmd = '/bin/cp -rf "%s%s/%s" "%s%s"' % (path_work, repository, file, path, file)
+            os.system(cmd)
+            print('bash: %s\n' % cmd)
+            # 逐个覆盖本地存档文件
+    else:
+        for file in files:
+            cmd = '/bin/cp -rf "%s%s" "%s%s/%s"' % (path, file, path_work, repository, file)
+            os.system(cmd)
+            print('bash: %s\n' % cmd)
+            # 逐个覆盖git存档文件
+    print('==========================================\n')
+
+# Check branch exist or not
+#   - branch: [str]
+def check_branch(branch, path_work, repository):
+    print('==========================================\n')
+    if not os.path.exists(path_work + repository):
+        os.chdir(path_work)
+        cmd = 'git clone %s' % clone_url
+        os.system(cmd)
+        print("Cloned repository to workspace\n")
+    # 判断是否克隆过仓库于本地
+    os.chdir(path_work + repository)
+    cmd = 'git branch -a | grep "%s" > ../Status' % branch
+    os.system(cmd)
+    with open(path_work + 'Status', 'r') as read_status:
+        status_lines = read_status.readlines()
+        read_status.close()
+    print('check_branch - Status - List:\n%s\n' % status_lines)
+    os.remove(path_work + 'Status')
+    if status_lines == []:
+        status_lines = ['None']
+    for line in status_lines:
+        line = line.replace('*', '')
+        line = line.replace(' ', '')
+        line = line.replace('\n', '')
+        print('------------------------------------------\n')
+        print('check_branch - Status: %s\n' % line)
+        print('check_branch : [%s]\n' % line.replace(branch, ''))
+        print('check_branch : [%s]\n' % line.replace('remotes/origin/%s' % branch, ''))
+        if line.replace(branch, '') == '' and not 'remotes/origin' in line:
+            status_local = 1
+            print('check_branch : Local branch exist\n')
+            # 本地分支存在
+        elif line.replace('remotes/origin/%s' % branch, '') == '' and 'remotes/origin' in line:
+            status_remote = 1
+            print('check_branch : Remote branch exist\n')
+            # 远程分支存在
+        else:
+            status_local = 0
+            status_remote = 0
+            print('check_branch : No branch in local or remote / Error!\n')
+            # Error
+    print('==========================================\n')
+    status = [status_local, status_remote]
+    return status
+    # status: [list]
+    # status_local: [int]
+    #   - 0: Local branch not exist
+    #   - 1: Local branch exist
+    # status_remote: [int]
+    #   - 0: Remote branch not exist
+    #   - 1: Remote branch exist
+    # 判断远程仓库是否存在分支
+
+#------------------------------------------------
+#------------------------------------------------
+
+option = sys.argv[1]
+# Using: Sync-cloud <Config-file>
+
+os.system('notify-send "󰔪  Syncing..."')
+
+if not os.path.exists(option):
+    os.system('notify-send "󰧠  Out of sync"')
+    sys.exit()
+
+with open(option, 'r') as read_option:
+    options = read_option.readlines()
+    read_option.close()
+name = options[0].replace('name = ', '').replace('\n', '')
+path = options[1].replace('path = ', '').replace('\n', '')
+files = options[2].replace('files = ', '').replace('\n', '').replace(', ', ',').replace(' ,', ',').split(',')
+print('==========================================\n')
+print('name: ', name, '\npath: ', path, '\nfiles: ', str(files), '\n')
+
+
+branch = name
+branch = branch.replace(':', '')
+branch = branch.replace(' ', '-')
+branch = branch.replace('"', '')
+branch = branch.replace("'", "")
+branch = branch.replace('/', '')
+branch = branch.replace('<', '')
+branch = branch.replace('>', '')
+branch = branch.replace('?', '')
+branch = branch.replace('!', '')
+branch = branch.replace('&', '')
+branch = branch.replace('*', '')
+branch = branch.replace('(', '')
+branch = branch.replace(')', '')
+branch = branch.replace('[', '')
+branch = branch.replace(']', '')
+branch = branch.replace('【', '')
+branch = branch.replace('】', '')
+branch = branch.replace('（', '')
+branch = branch.replace('）', '')
+
+print('==========================================\n')
+print('Branch: %s\n' % branch)
+
+status = check_branch(branch, path_work, repository) # 检查分支
+# status[0]: status_local
+# status[1]: status_remote
+
+#|status[0]   |status[1]    |
+#|status_local|status_remote|
+#|------------|-------------|
+#|0           |0            | 本地 远程均无
+#|0           |1            | 本地无 远程有
+#|1           |0            | 本地有 远程无
+#|1           |1            | 本地有 远程有
+
+
+os.chdir(path_work + repository)
+if status[0] == 0 and status[1] == 0: # 本地 远程均无
+    print('Local branch: NO\nRemote branch: NO\n')
+    cmd = 'git branch %s' % branch
+    os.system(cmd) # create a branch 
+    switch_branch(branch, '', path_work, repository) # Switch to local branch
+    cp_files(path, files, 1, path_work, repository) # Copy files to git repository
+    push_remote(branch) # Push to remote
+    print('main : Push to upstream\n')
+    os.system('notify-send "󰅧  Synced to cloud"')
+elif status[0] == 0 and status[1] == 1: # 本地无 远程有
+    print('Local branch: NO\nRemote branch: YES\n')
+    switch_branch(branch, 'origin/', path_work, repository) # Switch to remote branch
+    cp_files(path, files, 0, path_work, repository) # Copy files to local
+    print('main : Merge to local\n')
+    os.system('notify-send "󰅢  Synced to local"')
+elif status[0] == 1 and status[1] == 0: # 本地有 远程无
+    print('Local branch: YES\nRemote branch: NO\n')
+    switch_branch(branch, '', path_work, repository) # Switch to local branch
+    push_remote(branch) # Push to remote
+    print('main : Push to upstream\n')
+elif status[0] == 1 and status[1] == 1: # 本地有 远程有
+    print('Local branch: YES\nRemote branch: YES\n')
+    status = check_status(path_work, repository) # Check for status
+    if status == 0: # local > remote
+        push_remote(branch) # Push to remote
+        print('main : Push to upstream\n')
+        os.system('notify-send "󰅧  Synced to cloud"')
+    elif status == 1:
+        switch_branch(branch, '', path_work, repository) # Switch to local branch
+        cp_files(path, files, 1, path_work, repository) # Copy files to git repository
+        status = check_status(path_work, repository) # Check for status
+        if status == 1:
+            print('main : Up to date\n')
+            os.system('notify-send "󰅠  Up to data"')
+        elif status == 0:
+            push_remote(branch) # Push to remote
+            print('main : Push to upstream\n')
+            os.system('notify-send "󰅧  Synced to cloud"')
+        else:
+            print('main - status == 1 : Error!\n')
+            os.system('notify-send "󰧠  Out of sync"')
+    elif status == 2:
+        merge_remote(branch) # Merge from remote
+        print('main : Merge from upstream\n')
+        os.system('notify-send "󰅢  Synced to local"')
+    else:
+        print('main : Error in the end!\n')
+        sys.exit()
+        os.system('notify-send "󰧠  Out of sync"')
+        # Error
+print('==========================================\n')
