@@ -9,9 +9,9 @@
 #------------------------------------------------
 #------------------------------------------------
 
-path_work = ''
-repository = ''
-clone_url = '' + repository + '.git'
+path_work = '/home/Planetarium/Projects/Steam Deck/Saved Games/'
+repository = 'Saved-Games'
+clone_url = 'git@github.com:planetarium1001/' + repository + '.git'
 
 #------------------------------------------------
 #------------------------------------------------
@@ -227,6 +227,9 @@ if status[0] == 0 and status[1] == 0: # 本地 远程均无
     os.system(cmd) # create a branch 
     switch_branch(branch, '', path_work, repository) # Switch to local branch
     cp_files(path, files, 1, path_work, repository) # Copy files to git repository
+    with open(path_work + repository + '/README.md', 'w') as write_readme:
+        write_readme.write('# %s\nThis branch is for `%s`.' % (name, name))
+    write_readme.close()
     push_remote(branch) # Push to remote
     print('main : Push to upstream\n')
     os.system('notify-send "󰅧  Synced to cloud"')
